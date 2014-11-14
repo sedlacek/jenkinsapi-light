@@ -1,40 +1,68 @@
 import json
-from jenkinsapi.jenkins import Jenkins
-from jenkinsapi.jenkinsbase import JenkinsBase
-from jenkinsapi.misc import normalize_url, RefJob, join_url, default, JenkinsApiRequestFailed
-from jenkinsapi.requester import JenkinsAuth
+import jenkinsapi.jenkinsbase
+import jenkinsapi.requester
+import jenkinsapi.jenkins
+import jenkinsapi.misc
+import jenkinsapi.jenkinsqueueitem
 
 __author__ = 'sedlacek'
 
+class _JenkinsJobMeta(type):
+    """
+    Lets make sure that when parent is jenkins, any job is properly registered there
 
-class JenkinsJob(JenkinsBase):
+    We prevent creation of another instance of JenkinsJob object,
+    if it already exist and we just update existing instance
+    """
+    def __call__(cls, parent=None, objid=None, url=None, data=None, poll_interval=None,
+                 auth=None, timeout=None):
+        if auth is None:
+            auth = jenkinsapi.requester.JenkinsAuth()
+        assert (objid is None and url is not None) or (objid is not None and url is None), \
+            'Either url or objid can be defined, but not both!'
+        if isinstance(parent, jenkinsapi.jenkins.Jenkins):
+            # ok parent is instance of Jenkins
+            try:
+                res = parent.jobs[objid if objid is not None else JenkinsJob.objid_from_url(url)]
+                res.__an_update__(poll_interval=poll_interval, auth=auth, timeout=timeout)
+                return res
+            except KeyError:
+                pass
+        return super(_JenkinsJobMeta, cls).__call__(parent=parent, objid=objid, data=data,
+                                                            poll_interval=poll_interval, auth=auth, timeout=timeout)
 
-    _JOB = 'job'
 
-    def __init__(self, refobj=None, url=None, poll_interval=None, auth=JenkinsAuth(), timeout=None):
+class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
+
+    __metaclass__ = _JenkinsJobMeta
+    _EXTRA = 'job'
+
+    def __init__(self, parent=None, objid=None, url=None, data=None, poll_interval=None,
+                 auth=jenkinsapi.requester.JenkinsAuth(), timeout=None):
         """
-        :param refobj:              instance RefJob
-        :param url:                 or full job url
-        :param poll_interval:       api poll interval
-        :param auth:                authentication object
+        :param parent:              parent jenkins object
+        :param objid:               object id in parent context
+        :param url:                 jenkins URL, api/python will be added to the end
+        :param data:                we already got the data, so initiate the object with the data
+        :param auth:                jenkins auth - either apitoken or username and pwd
+        :param timeout:             timeout for API calls
+        :param url:                 jenkins URL, api/python will be added to the end
+        :param poll_interval:       0 - data polled always when value requested
+                                    >0 - interval in which data are refreshed (in seconds)
+                                    None - data automatically polled only once, when data are accessed
         """
-        assert (refobj is not None and url is None) or (refobj is None and url is not None), 'The only one from {refjob, url} can be used.'
-        if url is not None:
-            url = normalize_url(url)
-            self._name = url.split('/')[-1]
-            # we have to create a jenkins object
-            jenkinsurl = normalize_url(url[:-1 - len(self._name) - len(self._JOB)])
-            self._jenkins = Jenkins(url=jenkinsurl, poll_interval=poll_interval, auth=auth, timeout=timeout)
-        else:
-            assert isinstance(refobj, RefJob)
-            self._jenkins = refobj.jenkins
-            self._name = refobj.name
-            url = normalize_url(join_url(self._jenkins.url, self._JOB, self._name))
+        super(JenkinsJob, self).__init__(parent=parent,
+                                         objid=objid,
+                                         url=url,
+                                         data=data,
+                                         poll_interval=poll_interval,
+                                         auth=auth,
+                                         timeout=timeout)
+        self._jenkins = self.parent
+        self._name = self.objid
 
-        super(JenkinsJob, self).__init__(url=url,
-                                         auth=default(auth, self._jenkins.auth),
-                                         poll_interval=default(poll_interval, self._jenkins.poll_interval),
-                                         timeout=default(timeout, self._jenkins._timeout))
+        if isinstance(self.parent, jenkinsapi.jenkins.Jenkins):
+            self.parent._update_job_ref(self)
 
     @property
     def jenkins(self):
@@ -52,7 +80,7 @@ class JenkinsJob(JenkinsBase):
         :param files:       file build paramenters
         :return:            queue item
         """
-        build_params={}
+        build_params = {}
         if cause is not None:
             build_params['cause'] = cause
         # mangle build params for jenkins
@@ -65,12 +93,12 @@ class JenkinsJob(JenkinsBase):
                 bp.append({'name': file_, 'file': file_})
         build_params['json'] = json.dumps({'parameter': bp})
 
-        """
-        if params is None or files is not None:
-            url = '%s/build' % self.url
-        else:
-            url = '%s/buildWithParameters' % self.url
-        """
+        xxxx = """
+            if params is None or files is not None:
+                url = '%s/build' % self.url
+            else:
+                url = '%s/buildWithParameters' % self.url
+            """
 
         url = '%s/buildWithParameters' % self.url
 
@@ -78,8 +106,11 @@ class JenkinsJob(JenkinsBase):
         response = self.requester.post(url=url, data=build_params, files=files)
 
         if response.status_code not in (200, 201):
-            raise JenkinsApiRequestFailed('Request (%s) failed %d %s for %s' % ('POST', response.status_code, response.reason, response.url))
+            raise jenkinsapi.misc.JenkinsApiRequestFailed('Request (%s) failed %d %s for %s'
+                                                          % ('POST', response.status_code, response.reason,
+                                                             response.url))
 
-        print response.headers['location']
+        return jenkinsapi.jenkinsqueueitem.JenkinsQueueItem(parent=self.parent, url=response.headers['location'],
+                                                            auth=self.auth, timeout=self.timeout,
+                                                            poll_interval=self.poll_interval)
 
-        print 'Response:', response

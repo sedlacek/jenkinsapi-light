@@ -1,38 +1,47 @@
-from jenkinsapi.jenkinsbase import JenkinsBase
-from jenkinsapi.jenkinsqueue import JenkinsQueue
-from jenkinsapi.misc import normalize_url, RefQueueItem, join_url, default
-from jenkinsapi.requester import JenkinsAuth
+import jenkinsapi.jenkinsbase
+import jenkinsapi.jenkins
+import jenkinsapi.requester
 
 __author__ = 'sedlacek'
 
 
-class JenkinsQueueItem(JenkinsBase):
+class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
     """
     Queue item (queue is in jenkins scope
     """
 
-    _QUEUEITEM = 'item'
+    _EXTRA = 'queue/item'
 
-    def __init__(self, refobj=None, url=None, poll_interval=None, auth=JenkinsAuth(), timeout=None):
+    def __init__(self, parent=None, objid=None, url=None, data=None, poll_interval=None, auth=jenkinsapi.requester.JenkinsAuth(), timeout=None):
         """
-        :param refobj:        instance RefQueueItem
-        :param url:                 or full queue item url
-        :param poll_interval:       api poll interval
-        :param auth:                authentication object
+        :param parent:              parent jenkins object
+        :param objid:               object id in parent context
+        :param url:                 jenkins URL, api/python will be added to the end
+        :param data:                we already got the data, so initiate the object with the data
+        :param auth:                jenkins auth - either apitoken or username and pwd
+        :param timeout:             timeout for API calls
+        :param url:                 jenkins URL, api/python will be added to the end
+        :param poll_interval:       0 - data polled always when value requested
+                                    >0 - interval in which data are refreshed (in seconds)
+                                    None - data automatically polled only once, when data are accessed
         """
-        assert (refobj is not None and url is None) or (refobj is None and url is not None), 'The only one from {refqueueitem,, url} can be used.'
-        if url is not None:
-            url = normalize_url(url)
-            self._itemid = url.split('/')[-1]
-            # we have to create a jenkins job object
-            self._queue = JenkinsQueue(url=normalize_url(url[:-1 - len(self._itemid) - len(self._QUEUEITEM)]),
-                                       poll_interval=poll_interval, auth=auth, timeout=timeout)
-        else:
-            assert isinstance(refobj, RefQueueItem)
-            self._queue = refobj.queue
-            self._itemid = refobj.itemid
-            url = normalize_url(join_url(self._queue.url, self._QUEUEITEM, self._itemid))
+        super(JenkinsQueueItem, self).__init__(parent=parent,
+                                               objid=objid,
+                                               url=url,
+                                               data=data,
+                                               poll_interval=poll_interval,
+                                               auth=auth,
+                                               timeout=timeout)
+        self._jenkins = self.parent
+        self._item = self.objid
+        if isinstance(self.parent, jenkinsapi.jenkins.Jenkins):
+            self.parent.queue._update_queueitem_ref(self)
 
-        super(JenkinsQueueItem, self).__init__(url=url, auth=default(auth, self._queue.auth),
-                                               poll_interval=default(poll_interval, self._queue.poll_interval),
-                                               timeout=default(timeout, self._queue._timeout))
+    @property
+    def jenkins(self):
+        return self._jenkins
+
+    @property
+    def item(self):
+        return self._item
+

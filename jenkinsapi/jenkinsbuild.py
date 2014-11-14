@@ -1,6 +1,6 @@
 from jenkinsapi.jenkinsbase import JenkinsBase
 from jenkinsapi.jenkinsjob import JenkinsJob
-from jenkinsapi.misc import normalize_url, RefBuild, join_url, default
+from jenkinsapi.misc import normalize_url, join_url, default
 from jenkinsapi.requester import JenkinsAuth
 
 __author__ = 'sedlacek'
@@ -8,9 +8,10 @@ __author__ = 'sedlacek'
 
 class JenkinsBuild(JenkinsBase):
 
-    def __init__(self, refobj=None, url=None, poll_interval=None, auth=JenkinsAuth(), timeout=None):
+    def __init__(self, parent=None, objid=None, url=None, poll_interval=None, auth=JenkinsAuth(), timeout=None):
         """
-        :param refobj:            instance RefBuild
+
+        :param parent:
         :param url:                 or full job url
         :param poll_interval:       api poll interval
         :param auth:                authentication object
@@ -20,16 +21,15 @@ class JenkinsBuild(JenkinsBase):
             url = normalize_url(url)
             self._number = url.split('/')[-1]
             # we have to create a jenkins job object
-            self._job = JenkinsJob(url=normalize_url(url[:-len(self._number)]), poll_interval=poll_interval,
-                                   auth=auth, timeout=timeout)
+            self._job = JenkinsJob(url=normalize_url(url[:-len(self._number)]), poll_interval=poll_interval, auth=auth,
+                                   timeout=timeout)
         else:
             assert isinstance(refobj, RefBuild)
             self._job = refobj.job
             self._number = refobj.number
             url = normalize_url(join_url(self._job.url, self._number))
-        super(JenkinsBuild, self).__init__(url=url,
+        super(JenkinsBuild, self).__init__(url=url, poll_interval=default(poll_interval, self._job.poll_interval),
                                            auth=default(auth, self._job.auth),
-                                           poll_interval=default(poll_interval, self._job.poll_interval),
                                            timeout=default(timeout, self._job._timeout))
         self._console_more_data = True
         self._console_text_size = 0
