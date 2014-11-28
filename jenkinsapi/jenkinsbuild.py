@@ -13,8 +13,6 @@ class _JenkinsBuild(type):
     """
     def __call__(cls, parent=None, objid=None, url=None, data=None, poll_interval=None,
                  auth=None, timeout=None):
-        if auth is None:
-            auth = jenkinsapi.requester.JenkinsAuth()
         assert (objid is None and url is not None) or (objid is not None and url is None), \
             'Either url or objid can be defined, but not both!'
         myjob = parent
@@ -157,3 +155,19 @@ class JenkinsBuild(jenkinsapi.jenkinsbase.JenkinsBase):
             if not self._console_more_data:
                 # nothing more to process...
                 break
+
+    def block(self, poll_interval):
+        """
+        :param poll_interval:       poll interval, default 1 second
+        :return:                    self
+        """
+        if poll_interval is None:
+            if self.poll_interval is not None and self.poll_interval > 0:
+                poll_interval = self.poll_interval
+            else:
+                # set default
+                poll_interval = jenkinsapi.misc.DEFAULT_POLL_INTERVAL
+        assert poll_interval >= 1, 'Insanely short poll_interval (%f)' % poll_interval
+        while self.poll().isbuilding:
+            sleep(poll_interval)
+        return self

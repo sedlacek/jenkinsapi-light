@@ -262,7 +262,7 @@ class JenkinsBase(object):
 
     @auth.setter
     def auth(self, value):
-        assert isinstance(value, jenkinsapi.requester.JenkinsAuth),\
+        assert isinstance(value, (jenkinsapi.requester.JenkinsAuth, None)),\
             'Auth must be an instance of JenkinsAuth and not %s' % value.__class__.__name__
         self._auth = value
         # we have to invalidate requester

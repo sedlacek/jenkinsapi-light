@@ -12,8 +12,6 @@ class _JenkinsQueueMeta(type):
     """
     def __call__(cls, parent=None, objid=None, url=None, data=None, poll_interval=None,
                  auth=None, timeout=None):
-        if auth is None:
-            auth = jenkinsapi.requester.JenkinsAuth()
         assert (objid is None and url is not None) or (objid is not None and url is None), \
             'Either url or objid can be defined, but not both!'
         if isinstance(parent, jenkinsapi.jenkins.Jenkins):
