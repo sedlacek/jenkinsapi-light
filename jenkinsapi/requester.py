@@ -1,6 +1,7 @@
 import requests
 
 from jenkinsapi.misc import default, merge_all_dict, last_not_none
+import logging
 
 __author__ = 'sedlacek'
 
@@ -100,7 +101,7 @@ class Requester(object):
         self._cookies = default(cookies, {})
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
-        print 'GET: %s' % default(url, self._url)
+        logging.debug('GET: %s' % default(url, self._url))
         request = requests.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
@@ -111,7 +112,7 @@ class Requester(object):
         return request
 
     def post(self, url=None, params=None, data=None, headers=None, cookies=None, auth=None, files=None):
-        print 'POST: %s' % default(url, self._url)
+        logging.debug('POST: %s\n\tparams: %s\n\tdata: %s' % (default(url, self._url), str(params), str(data)))
         request = requests.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),

@@ -2,6 +2,7 @@ from ast import literal_eval
 import time
 import jenkinsapi.misc
 import jenkinsapi.requester
+import jenkinsapi.jenkins
 
 __author__ = 'sedlacek'
 
@@ -51,12 +52,11 @@ class JenkinsBase(object):
             auth = jenkinsapi.requester.JenkinsAuth()
 
         self._url = jenkinsapi.misc.normalize_url(url)
-        self._objid = objid
+        self.objid = objid
         self._parent = parent
 
         if self._parent is None:
             _ = self.parent                                 # force self._parent creation (FakeJenkinsBase)
-
         if self._url is None:
             _ = self.url                                    # force self_url creation from parent and objid
 
@@ -106,10 +106,7 @@ class JenkinsBase(object):
             # we already have data, so use them for update
             self._update_data(data=data, now=now)
             self._update_poll(now)
-        elif self._poll_interval is None:
-            self._poll()
-            self._update_poll(now)
-        elif self._next_poll <= now:
+        elif self._poll_interval is None or self._next_poll <= now:
             self._poll()
             self._update_poll(now)
         return self
@@ -186,6 +183,16 @@ class JenkinsBase(object):
             return self._objid
         raise ValueError('Cannot guess objid')
 
+    @objid.setter
+    def objid(self, value):
+        """
+        objid is always converted to string
+        """
+        if value is None:
+            self._objid = None
+        else:
+            self._objid = str(value)
+
     @property
     def parent(self):
         """
@@ -194,9 +201,31 @@ class JenkinsBase(object):
         if self._parent is not None:
             return self._parent
         if self._url is not None:
-            self._parent = FakeJenkinsBase(jenkinsapi.misc.normalize_url(self.url)[: -1 - len(self.objid)])
+            self._parent = FakeJenkinsBase(jenkinsapi.misc.normalize_url(self.url)[: -1 - len(self.objid) - 0 if self._EXTRA is None else (1 + len(self._EXTRA))])
             return self._parent
         raise ValueError('Cannot guess parent API object.')
+
+    @property
+    def jenkins(self):
+        """
+        :return:            Jenkins object instance or None if it could not be found
+        """
+        # is  self._jenkins is defined, then return self._jenkins
+        if hasattr(self,'_jenkins'):
+            return self._jenkins
+        # now traverse all parents up to the root and return first which is instance of Jenkins
+        parent = self
+        while not isinstance(parent, jenkinsapi.jenkins.Jenkins):
+            parent = parent.parent
+            if isinstance(parent, FakeJenkinsBase):
+                # ok, we cannot fond Jenkins instance :(
+                break
+        if isinstance(parent, jenkinsapi.jenkins.Jenkins):
+            self._jenkins = parent
+            return parent
+        else:
+            self._jenkins = None
+            return None
 
     @property
     def url(self):

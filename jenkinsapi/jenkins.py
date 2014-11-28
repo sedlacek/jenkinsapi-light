@@ -29,7 +29,7 @@ class Jenkins(jenkinsapi.jenkinsbase.JenkinsBase):
                                       timeout=timeout)
         # JenkinsBase.__init__ class guessed parent and objid, so lets correct it
         self._parent = None
-        self._objid = None
+        self.objid = None
         self._queue = jenkinsapi.jenkinsqueue.JenkinsQueue(parent=self, objid='queue', timeout=timeout,
                                                            poll_interval=poll_interval, auth=auth)
         self._jobs = {}
@@ -41,22 +41,19 @@ class Jenkins(jenkinsapi.jenkinsbase.JenkinsBase):
         return None
 
     @property
-    def objid(self):
-        return None
-
-    @property
     def queue(self):
         return self._queue
 
     @property
     def jobs(self):
+        self.auto_poll()
         return self._jobs
 
     @property
     def views(self):
         return self._views
 
-    def _update_job_ref(self, otherjob):
+    def update_job_ref(self, otherjob):
         """
         Updating job reference
 
@@ -64,7 +61,7 @@ class Jenkins(jenkinsapi.jenkinsbase.JenkinsBase):
         :return:                updated job
         """
         try:
-            myjob = self._jobs[otherjob.name]
+            myjob = self._jobs[otherjob.objid]
 
             # we want to compare objects only if they are not the same
             if myjob != otherjob and myjob < otherjob:
@@ -72,11 +69,11 @@ class Jenkins(jenkinsapi.jenkinsbase.JenkinsBase):
                 # now merge the data
                 myjob.poll(data=otherjob.data, now=otherjob.last_poll)
         except KeyError:
-            self._jobs[otherjob.name] = otherjob
+            self._jobs[otherjob.objid] = otherjob
 
-        return self._jobs[otherjob.name]
+        return self._jobs[otherjob.objid]
 
-    def _delete_job_ref(self, job):
+    def delete_job_ref(self, job):
         """
         Delete job reference
 
@@ -113,4 +110,4 @@ class Jenkins(jenkinsapi.jenkinsbase.JenkinsBase):
                                                  auth=self.auth, timeout=self.timeout)
         # and now delete all jobs which are no longer in jenkins
         for key in keystoremove:
-            self._delete_job_ref(key)
+            self.delete_job_ref(key)

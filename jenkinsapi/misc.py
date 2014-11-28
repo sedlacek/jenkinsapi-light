@@ -1,5 +1,11 @@
 __author__ = 'sedlacek'
 
+# constants
+
+DEFAULT_POLL_INTERVAL = 5           # polling interval default for blocking operations
+                                    # I do not know about any other method how to get jenkins data on change
+                                    # then regular polling :(
+
 def default(value, default_if_value_is_None):
     """
     Returns default value is value is None
@@ -58,4 +64,16 @@ def normalize_url(url_):
         return url
 
 
+class IgnoreKeyError(object):
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type == KeyError:
+            return True
+
+
 class JenkinsApiRequestFailed(Exception): pass
+class JenkinsNotAvailable(Exception): pass
+class JenkinsNoMoreConsoleData(Exception): pass

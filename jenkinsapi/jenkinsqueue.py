@@ -24,7 +24,7 @@ class _JenkinsQueueMeta(type):
                 return res
             except AttributeError:
                 pass
-        return super(_JenkinsQueueMeta, cls).__call__(parent=parent, objid=objid, data=data,
+        return super(_JenkinsQueueMeta, cls).__call__(parent=parent, objid=objid, url=url, data=data,
                                                             poll_interval=poll_interval, auth=auth, timeout=timeout)
 
 class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
@@ -48,7 +48,7 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
                                     >0 - interval in which data are refreshed (in seconds)
                                     None - data automatically polled only once, when data are accessed
         """
-        self._data = {}
+        self._items = {}
         super(JenkinsQueue, self).__init__(parent=parent,
                                            objid=objid,
                                            url=url,
@@ -56,12 +56,11 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
                                            poll_interval=poll_interval,
                                            auth=auth,
                                            timeout=timeout)
-        self._jenkins = self.parent
-        self._items = {}
 
 
     @property
     def items(self):
+        self.auto_poll()
         return self._items
 
     def _update_data(self, data, now=None):
@@ -70,25 +69,22 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
         :param now:
         """
         # store all the item keys
-        keystoremove = self.items.keys()
+        keystoremove = self._items.keys()
         for item in data['items']:
-            if item['id'] in self.items:
-                self.items[item['id']].poll(data=item, now=now)
-                keystoremove.remove(item['id'])
+            itemid = str(item['id'])
+            if itemid in self._items:
+                self._items[itemid].poll(data=item, now=now)
+                keystoremove.remove(itemid)
             else:
-                jenkinsapi.jenkinsqueueitem.JenkinsQueueItem(parent=self.parent,  objid=item['id'], data=item,
+                jenkinsapi.jenkinsqueueitem.JenkinsQueueItem(parent=self.parent,  objid=itemid, data=item,
                                                              poll_interval=self.poll_interval,
                                                              auth=self.auth, timeout=self.timeout)
         # and now delete all queue items which are no longer in jenkins queue
         for key in keystoremove:
-            self._delete_queueitem_ref(key)
+            self.delete_queueitem_ref(key)
 
-    def __setitem__(self, key, value):
-        if not isinstance(value, jenkinsapi.jenkinsqueueitem.JenkinsQueueItem):
-            raise ValueError('Expecting %s and got %s' % ('JenkinsQueueItem', value.__class__.__name__))
-        return super(JenkinsQueue, self).__setitem__(key, value)
 
-    def _update_queueitem_ref(self, otheritem):
+    def update_queueitem_ref(self, otheritem):
         """
         Updating job reference
 
@@ -96,7 +92,7 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
         :return:                updated queue item
         """
         try:
-            myitem = self.items[otheritem.item]
+            myitem = self._items[otheritem.objid]
 
             # we want to compare objects only if they are not the same
             if myitem != otheritem and myitem < otheritem:
@@ -105,11 +101,11 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
                 # now merge the data
                 myitem.poll(data=otheritem.data, now=otheritem.last_poll)
         except KeyError:
-            self.items[otheritem.item] = otheritem
+            self._items[otheritem.objid] = otheritem
 
-        return self.items[otheritem.item]
+        return self._items[otheritem.objid]
 
-    def _delete_queueitem_ref(self, item):
+    def delete_queueitem_ref(self, item):
         """
         Delete queueitem reference
 
@@ -122,6 +118,6 @@ class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
             itemid = item
 
         # delete from job list
-        del self.items[itemid]
+        del self._items[itemid]
         return self
 
