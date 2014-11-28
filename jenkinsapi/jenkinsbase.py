@@ -48,9 +48,6 @@ class JenkinsBase(object):
             or (parent is not None and objid is None and url is not None),\
             'Unsupported combination of arguments: parent, objid and url.'
 
-        if auth is None:
-            auth = jenkinsapi.requester.JenkinsAuth()
-
         self._url = jenkinsapi.misc.normalize_url(url)
         self.objid = objid
         self._parent = parent
@@ -140,7 +137,7 @@ class JenkinsBase(object):
     @property
     def requester(self):
         if self._requester is None:
-            if self._auth.token is not None:
+            if self.auth.token is not None:
                 params = {'token': self.auth.token}
             else:
                 params = {}
