@@ -16,6 +16,7 @@ parser.add_argument('--user', required=False, default=None, metavar='<user>', he
 parser.add_argument('--password', required=False, default=None, metavar='<password>', help='user password or API token')
 parser.add_argument('--job', required=True, metavar='<job>', help='job name')
 parser.add_argument('--token', required=False, default=None,  metavar='<token>', help='job\'s API token')
+parser.add_argument('--prefix', required=False, default='remote> ',  metavar='<prefix>', help='output prefix')
 parser.add_argument('--noblock', action='store_true', help='do not wait until build finish.')
 parser.add_argument('--noconsole', action='store_true', help='do no copy console output to stdout')
 parser.add_argument('--cause', required=False, default=None,  metavar='<cause>', help='build cause')
@@ -67,7 +68,7 @@ else:
 
 if console:
     for line in build.console(reset=True, poll_interval=1):
-        print line
+        print '%s%s' % (args['prefix'], line)
 
     assert not build.poll().isbuilding,\
         'Something wrong happened, build is still building, ' \
