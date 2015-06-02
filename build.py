@@ -34,7 +34,7 @@ job = JenkinsJob(parent=jenkins, objid=args['job'])
 params = {}
 for param in args['params']:
     key, value = param.split('=', 1)
-    params[key] = literal_eval(value)
+    params[key] = value
 if len(params) == 0:
     params = None
 
