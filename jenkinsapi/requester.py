@@ -1,7 +1,11 @@
 import requests
 
 from jenkinsapi.misc import default, merge_all_dict, last_not_none
+from sys import stdout
+
 import logging
+logging.basicConfig()
+logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
 
@@ -101,7 +105,7 @@ class Requester(object):
         self._cookies = default(cookies, {})
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
-        logging.debug('GET: %s' % default(url, self._url))
+        logger.debug('GET: %s' % default(url, self._url))
         request = requests.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
@@ -111,13 +115,35 @@ class Requester(object):
             timeout=self._timeout)
         return request
 
+    def iterget(self, url=None, params=None, headers=None, cookies=None, auth=None, blocksize=None):
+
+        logger.debug('GET (iterator): %s' % default(url, self._url))
+
+        if blocksize is None:
+            # lets try 1kB chunks
+            blocksize = 1024
+
+        request = requests.get(
+            url=default(url, self._url),
+            params=merge_all_dict(self._params, params),
+            cookies=merge_all_dict(self._cookies, cookies),
+            headers=merge_all_dict(self._headers, headers),
+            auth=last_not_none(self._auth, auth),
+            timeout=self._timeout,
+            stream=True
+        )
+        if not request.ok:
+            raise IOError('HTTPStatus: %s\nCannot get %s.' % (request.status_code, url))
+        return request.iter_content(blocksize)
+
     def post(self, url=None, params=None, data=None, headers=None, cookies=None, auth=None, files=None):
-        logging.debug('POST: %s\n\tparams: %s\n\tdata: %s' % (default(url, self._url), str(params), str(data)))
+        logger.debug('POST: %s\n\tparams: %s\n\tdata: %s' % (default(url, self._url), str(params), str(data)))
         request = requests.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
-            headers=merge_all_dict({'Content-Type': 'application/x-www-form-urlencoded'}, self._headers, headers),
+            #headers=merge_all_dict({'Content-Type': 'multipart/form-data'}, self._headers, headers),
+            headers=merge_all_dict({'Content-Type': 'application/x-www-form-urlencoded'} if files is None else None, self._headers, headers),
             auth=last_not_none(self._auth, auth),
             data=last_not_none('', data),
             files=files,

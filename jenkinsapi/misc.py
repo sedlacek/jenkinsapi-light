@@ -77,3 +77,4 @@ class IgnoreKeyError(object):
 class JenkinsApiRequestFailed(Exception): pass
 class JenkinsNotAvailable(Exception): pass
 class JenkinsNoMoreConsoleData(Exception): pass
+

@@ -45,7 +45,7 @@ class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
 
     __metaclass__ = _JenkinsQueueItemMeta
 
-    _EXTRA = 'queue/item'
+    _EXTRA = 'item'
 
     def __init__(self, parent=None, objid=None, url=None, data=None, poll_interval=None, auth=jenkinsapi.requester.JenkinsAuth(), timeout=None):
         """
@@ -125,6 +125,24 @@ class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
             if self._data['executable'] is not None:
                 return True
         return False
+
+    @property
+    def parameters(self):
+        self.auto_poll()
+        if 'params' in self._data:
+            return dict(
+                [line.split('=', 1) for line in self._data['params'].splitlines() if line != '']
+            )
+        else:
+            return {}
+
+    @property
+    def name(self):
+        self.auto_poll()
+        if 'task' in self._data:
+            if 'name' in self._data['task']:
+                return self._data['task']['name']
+        return None
 
     @property
     def inqueue(self):

@@ -12,18 +12,24 @@ class _JenkinsQueueMeta(type):
     """
     def __call__(cls, parent=None, objid=None, url=None, data=None, poll_interval=None,
                  auth=None, timeout=None):
-        assert (objid is None and url is not None) or (objid is not None and url is None), \
-            'Either url or objid can be defined, but not both!'
-        if isinstance(parent, jenkinsapi.jenkins.Jenkins):
-            # ok parent is instance of Jenkins
-            try:
-                res = parent.queue
-                res.__an_update__(poll_interval=poll_interval, auth=auth, timeout=timeout)
-                return res
-            except AttributeError:
-                pass
-        return super(_JenkinsQueueMeta, cls).__call__(parent=parent, objid=objid, url=url, data=data,
-                                                            poll_interval=poll_interval, auth=auth, timeout=timeout)
+        assert (parent is None and url is not None) or (url is None and parent is not None), \
+            'Either queue url or a parent can be defined, but not both!'
+        if parent is None:
+            # ok return queue based on url
+            return super(_JenkinsQueueMeta, cls).__call__(parent=parent, objid=objid, url=url, data=data,
+                                                          poll_interval=poll_interval, auth=auth, timeout=timeout)
+        else:
+            if isinstance(parent, jenkinsapi.jenkins.Jenkins):
+                # ok parent is instance of Jenkins, queue is attached to jenkins root object
+                jenkins = parent.jenkins
+                try:
+                    res = jenkins.queue
+                    res.__an_update__(poll_interval=poll_interval, auth=auth, timeout=timeout)
+                    return res
+                except AttributeError:
+                    # if we are here, we are sdesperate, so lets try to create new queue object
+                    return super(_JenkinsQueueMeta, cls).__call__(parent=jenkins, objid='queue', url=url, data=data,
+                                                          poll_interval=poll_interval, auth=auth, timeout=timeout)
 
 class JenkinsQueue(jenkinsapi.jenkinsbase.JenkinsBase):
     """

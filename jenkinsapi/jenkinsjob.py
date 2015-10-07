@@ -5,6 +5,16 @@ import jenkinsapi.jenkins
 import jenkinsapi.misc
 import jenkinsapi.jenkinsqueueitem
 import jenkinsapi.jenkinsbuild
+import jenkinsapi.jenkinsqueue
+
+from time import time
+from random import randint
+from sys import maxint
+import os.path
+
+import logging
+logging.basicConfig()
+logger = logging.getLogger(__file__)
 
 __author__ = 'sedlacek'
 
@@ -70,6 +80,22 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
     def builds(self):
         return self._builds
 
+    @property
+    def parameters(self):
+        self.auto_poll()
+        result = {}
+        if 'actions' in self._data:
+            for action in self._data['actions']:
+                if 'parameterDefinitions' in action:
+                    for parameter in action['parameterDefinitions']:
+                        result[parameter['name']] = {
+                                'description': parameter['description'],
+                                'default': parameter['defaultParameterValue']['value']
+                                    if isinstance(parameter['defaultParameterValue'], dict) else None,
+                                'type': parameter['type'],
+                            }
+        return result
+
     def update_build_ref(self, otherbuild):
         """
         Updating build reference
@@ -134,13 +160,53 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
         :param files:       file build paramenters
         :return:            queue item
         """
-        # we ignore files for now ...
-        build_params = jenkinsapi.misc.merge_all_dict(
-            {'cause': cause} if cause is not None else None,
-            params
-            )
+        parameter = []          # for jenkins json
+        # for comparing with queueue item params
+        # all params must be strings ...
+        _parameters = {key: str(value) for key, value in params.iteritems()}
 
-        url = '%s/buildWithParameters' % self.url
+        # lets generate jenkins api build id what we use to find build in the queue
+        # as jenkinsbuild api does not return queued item location as buildWithParameters does
+        jenkins_api_build_id = 'japi-%d-%d' % (time(), randint(0, maxint))
+        if files is not None:
+            url = '%s/build' % self.url
+            if '___JENKINS_API_BUILD_ID' in self.parameters:
+                _parameters['___JENKINS_API_BUILD_ID'] = jenkins_api_build_id
+                parameter = [{'name': '___JENKINS_API_BUILD_ID', 'value': jenkins_api_build_id}]
+            else:
+                logger.warning(' With file parameter(s), jenkins build api must be used.\n'
+                               'Unfortunately it is not possible to locate build after submit \n'
+                               'and heuristic matching submitted builds by parameters has potential\n'
+                               'loopholes to attach to wrong build.\n'
+                               'Please add "___JENKINS_API_BUILD_ID" string parameter to your jenkins\n'
+                               'job configuration. jenkinsapi-light will fill it with unique build ID\n'
+                               'and it will be used to find the build in jenkins build queue.')
+            buildapi = True
+        else:
+            url = '%s/buildWithParameters' % self.url
+            buildapi = False
+
+        build_params = {}
+        if params is not None:
+            parameter += [{'name': name, 'value': value} for name, value in params.iteritems()]
+        if files is not None:
+            for name, _file in files.iteritems():
+                parameter.append({'name': name, 'file': name})
+                # we have to add a files to _parameters, as jenkins does
+                # get file name
+                if isinstance(_file, file):
+                    filename = str(os.path.basename(_file.name))
+                else:
+                    filename = _file[0]
+                _parameters[name] = str(os.path.basename(filename))
+
+        if buildapi:
+            # we have to use build
+            build_params['json'] = json.dumps({'parameter': parameter})
+        else:
+            # we are using buildWithParameters
+            build_params = params
+
 
         # now we are ready to try enqueue a build
         response = self.requester.post(url=url, data=build_params, files=files)
@@ -149,8 +215,16 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
             raise jenkinsapi.misc.JenkinsApiRequestFailed('Request (%s) failed %d %s for %s'
                                                           % ('POST', response.status_code, response.reason,
                                                              response.url))
-
-        return jenkinsapi.jenkinsqueueitem.JenkinsQueueItem(parent=self.parent, url=response.headers['location'],
+        if buildapi:
+            # find build in queue, we have to use heuristic and guess which one is ours :(
+            for item in jenkinsapi.jenkinsqueue.JenkinsQueue(parent=self.parent).items.itervalues():
+                if _parameters == item.parameters and self.name == item.name:
+                    # we found build with same parameters as we submitted, so we hope it is ours ...
+                    return item
+            raise jenkinsapi.misc.JenkinsApiRequestFailed('Cannot find recently started build in jenkins :(')
+        else:
+            # not a build api so assume we can use location ...
+            return jenkinsapi.jenkinsqueueitem.JenkinsQueueItem(parent=self.parent, url=response.headers['location'],
                                                             auth=self.auth, timeout=self.timeout,
                                                             poll_interval=self.poll_interval)
 

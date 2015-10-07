@@ -2,6 +2,8 @@ import jenkinsapi.jenkinsbase
 import jenkinsapi.jenkinsjob
 import jenkinsapi.misc
 import jenkinsapi.requester
+import jenkinsapi.jenkinsartifacts
+
 from time import sleep
 
 __author__ = 'sedlacek'
@@ -61,7 +63,6 @@ class JenkinsBuild(jenkinsapi.jenkinsbase.JenkinsBase):
         if isinstance(self.job, jenkinsapi.jenkinsjob.JenkinsJob):
             self.job.update_build_ref(self)
 
-
     @property
     def job(self):
         if hasattr(self, '_job'):
@@ -104,6 +105,14 @@ class JenkinsBuild(jenkinsapi.jenkinsbase.JenkinsBase):
     def isbuilding(self):
         self.auto_poll()
         return self['building']
+
+    @property
+    def artifacts(self):
+        self.auto_poll()
+        if not hasattr(self, '_artifacts') and 'artifacts' in self._data:
+            self._artifacts = jenkinsapi.jenkinsartifacts.JenkinsArtifacts(parent=self, data=self._data['artifacts'])
+        return self._artifacts
+
 
     def console(self, poll_interval=1, reset=False):
         """
