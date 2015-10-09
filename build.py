@@ -9,7 +9,7 @@ import re
 import logging
 
 logging.basicConfig()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__file__)
 
 import argparse
 
