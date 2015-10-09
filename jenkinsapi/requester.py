@@ -10,18 +10,35 @@ logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
 
+# workaround for broken ssl in python :(
 SSLVers = []
+# lets try to get highest possible SSL version
 try:
-    # lets try to get highest possible SSL version
     SSLVers.insert(0, ssl.PROTOCOL_SSLv2)
+except:
+    pass
+try:
     SSLVers.insert(0, ssl.PROTOCOL_SSLv3)
+except:
+    pass
+try:
     SSLVers.insert(0, ssl.PROTOCOL_SSLv23)
+except:
+    pass
+try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1)
+except:
+    pass
+try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1_1)
+except:
+    pass
+try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1_2)
 except:
     pass
 
+logger.debug(' Detected SSL versions: %s' % str(SSLVers))
 
 # from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
 from requests.adapters import HTTPAdapter
