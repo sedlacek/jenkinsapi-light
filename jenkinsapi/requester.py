@@ -10,7 +10,18 @@ logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
 
-SSLVer = ssl.PROTOCOL_TLSv1_2
+SSLVers = []
+try:
+    # lets try to get highest possible SSL version
+    SSLVers.insert(0, ssl.PROTOCOL_SSLv2)
+    SSLVers.insert(0, ssl.PROTOCOL_SSLv3)
+    SSLVers.insert(0, ssl.PROTOCOL_SSLv23)
+    SSLVers.insert(0, ssl.PROTOCOL_TLSv1)
+    SSLVers.insert(0, ssl.PROTOCOL_TLSv1_1)
+    SSLVers.insert(0, ssl.PROTOCOL_TLSv1_2)
+except:
+    pass
+
 
 # from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
 from requests.adapters import HTTPAdapter
@@ -126,9 +137,17 @@ class Requester(object):
         self._headers = default(headers, {})
         self._cookies = default(cookies, {})
 
-        # create request session object
+        # create request session object and try to auto detect proper ssl version
         self.session = requests.session()
-        self.session.mount('https://', SSLAdapter(SSLVer))
+        if self._url.startswith('https://'):
+            for SSLVer in SSLVers:
+                try:
+                    self.session = requests.session()
+                    self.session.mount('https://', SSLAdapter(SSLVer))
+                    self.session.get(self._url)
+                    break
+                except requests.exceptions.SSLError:
+                    continue
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))

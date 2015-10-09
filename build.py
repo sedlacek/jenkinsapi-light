@@ -2,22 +2,11 @@ __author__ = 'sedlacek'
 
 from jenkinsapi.jenkins import Jenkins
 from jenkinsapi.jenkinsjob import JenkinsJob
-import jenkinsapi.requester
-JenkinsAuth = jenkinsapi.requester.JenkinsAuth
+from jenkinsapi.requester import JenkinsAuth
 
 import re
 
 import logging
-import ssl
-
-SSLVersions = {
-   'PROTOCOL_SSLv2':   ssl.PROTOCOL_SSLv2,
-   'PROTOCOL_SSLv3':   ssl.PROTOCOL_SSLv3,
-   'PROTOCOL_SSLv23':  ssl.PROTOCOL_SSLv23,
-   'PROTOCOL_TLSv1':   ssl.PROTOCOL_TLSv1,
-   'PROTOCOL_TLSv1_1': ssl.PROTOCOL_TLSv1_1,
-   'PROTOCOL_TLSv1_2': ssl.PROTOCOL_TLSv1_2,
-}
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -97,17 +86,12 @@ parser.add_argument('--noconsole', action='store_true', help='do no copy console
 parser.add_argument('--cause', required=False, default=None,  metavar='<cause>', help='build cause')
 parser.add_argument('--level', required=False, default='WARNING',  metavar='<debug level>', help='Debug Level')
 parser.add_argument('--artifacts', required=False, default=None, metavar='<artifacts>', help='Artifacts to download (regex) or ALL')
-parser.add_argument('--sslver', required=False, default='PROTOCOL_TLSv1_2', metavar='<sslver>',
-                    help='Force ssl version see pythons ssl module for constanst')
 parser.add_argument('params', metavar='param1=value', nargs='*', help='build parameters, file type param2=@filename')
 
 
 args = vars(parser.parse_args())
 
 logger.setLevel(args['level'])
-
-assert args['sslver'] in SSLVersions.keys(), 'sslver parameter must be one of %s' % ', '.join(SSLVersions.keys())
-jenkinsapi.requester.SSLVer = SSLVersions[args['sslver']]
 
 jenkins = Jenkins(url=args['jenkins'], auth=JenkinsAuth(username=args['user'], password=args['password'], token=args['token']))
 job = JenkinsJob(parent=jenkins, objid=args['job'])
