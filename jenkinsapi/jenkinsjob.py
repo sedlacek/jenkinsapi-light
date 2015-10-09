@@ -163,7 +163,10 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
         parameter = []          # for jenkins json
         # for comparing with queueue item params
         # all params must be strings ...
-        _parameters = {key: str(value) for key, value in params.iteritems()}
+        if params is None:
+            _parameters = {}
+        else:
+            _parameters = {key: str(value) for key, value in params.iteritems()}
 
         # lets generate jenkins api build id what we use to find build in the queue
         # as jenkinsbuild api does not return queued item location as buildWithParameters does
