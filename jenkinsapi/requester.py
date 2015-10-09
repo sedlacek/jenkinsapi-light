@@ -1,4 +1,5 @@
 import requests
+import ssl
 
 from jenkinsapi.misc import default, merge_all_dict, last_not_none
 from sys import stdout
@@ -8,6 +9,26 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
+
+
+# from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.poolmanager import PoolManager
+
+class SSLAdapter(HTTPAdapter):
+    '''An HTTPS Transport Adapter that uses an arbitrary SSL version.'''
+    def __init__(self, ssl_version=None, **kwargs):
+        self.ssl_version = ssl_version
+
+        super(SSLAdapter, self).__init__(**kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = PoolManager(num_pools=connections,
+                                       maxsize=maxsize,
+                                       block=block,
+                                       ssl_version=self.ssl_version)
+
+# end of from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
 
 class SimpleAuth(object):
 
@@ -104,9 +125,13 @@ class Requester(object):
         self._headers = default(headers, {})
         self._cookies = default(cookies, {})
 
+        # create request session object
+        self.session = requests.session()
+        self.session.mount('https://', SSLAdapter(ssl.PROTOCOL_TLSv1))
+
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))
-        request = requests.get(
+        request = self.session.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
@@ -123,7 +148,7 @@ class Requester(object):
             # lets try 1kB chunks
             blocksize = 1024
 
-        request = requests.get(
+        request = self.session.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
@@ -138,7 +163,7 @@ class Requester(object):
 
     def post(self, url=None, params=None, data=None, headers=None, cookies=None, auth=None, files=None):
         logger.debug('POST: %s\n\tparams: %s\n\tdata: %s' % (default(url, self._url), str(params), str(data)))
-        request = requests.post(
+        request = self.session.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
