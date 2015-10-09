@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
 
+SSLVer = ssl.PROTOCOL_TLSv1_2
 
 # from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
 from requests.adapters import HTTPAdapter
@@ -127,7 +128,7 @@ class Requester(object):
 
         # create request session object
         self.session = requests.session()
-        self.session.mount('https://', SSLAdapter(ssl.PROTOCOL_SSLv3))
+        self.session.mount('https://', SSLAdapter(SSLVer))
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))
