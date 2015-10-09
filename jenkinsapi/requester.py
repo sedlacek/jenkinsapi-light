@@ -127,7 +127,7 @@ class Requester(object):
 
         # create request session object
         self.session = requests.session()
-        self.session.mount('https://', SSLAdapter(ssl.PROTOCOL_TLSv1))
+        self.session.mount('https://', SSLAdapter(ssl.PROTOCOL_SSLv3))
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))
