@@ -13,8 +13,7 @@ from sys import maxint
 import os.path
 
 import logging
-logging.basicConfig()
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
 
@@ -212,6 +211,9 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
 
 
         # now we are ready to try enqueue a build
+        logger.debug('url: %s' % url)
+        logger.debug('data: %s' % str(build_params))
+        logger.debug('files: %s' % str(files))
         response = self.requester.post(url=url, data=build_params, files=files)
 
         if response.status_code not in (200, 201):

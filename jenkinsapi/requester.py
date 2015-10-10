@@ -5,7 +5,6 @@ from jenkinsapi.misc import default, merge_all_dict, last_not_none
 from sys import stdout
 
 import logging
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
@@ -199,7 +198,9 @@ class Requester(object):
         return request.iter_content(blocksize)
 
     def post(self, url=None, params=None, data=None, headers=None, cookies=None, auth=None, files=None):
-        logger.debug('POST: %s\n\tparams: %s\n\tdata: %s' % (default(url, self._url), str(params), str(data)))
+        logger.debug('POST: %s' % default(url, self._url))
+        logger.debug('POST: params: %s' % str(params))
+        logger.debug('POST: data: %s' % str(data))
         request = self.session.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),

@@ -8,7 +8,6 @@ import re
 
 import logging
 
-logging.basicConfig()
 logger = logging.getLogger(__file__)
 
 import argparse
@@ -91,7 +90,7 @@ parser.add_argument('params', metavar='param1=value', nargs='*', help='build par
 
 args = vars(parser.parse_args())
 
-logger.setLevel(args['level'])
+logging.basicConfig(level=args['level'].upper())
 
 jenkins = Jenkins(url=args['jenkins'], auth=JenkinsAuth(username=args['user'], password=args['password'], token=args['token']))
 job = JenkinsJob(parent=jenkins, objid=args['job'])

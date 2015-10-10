@@ -5,7 +5,6 @@ import jenkinsapi.misc
 import os
 
 import logging
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 __author__ = 'sedlacek'
