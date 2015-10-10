@@ -174,11 +174,14 @@ class Requester(object):
             headers=merge_all_dict(self._headers, headers),
             auth=last_not_none(self._auth, auth),
             timeout=self._timeout)
+        if not request.ok:
+            raise IOError('HTTPStatus: %s\nCannot get %s.' % (request.status_code, url))
+        logger.debug('GET:response: %s' % request.content)
         return request
 
     def iterget(self, url=None, params=None, headers=None, cookies=None, auth=None, blocksize=None):
 
-        logger.debug('GET (iterator): %s' % default(url, self._url))
+        logger.debug('GET_(iterator): %s' % default(url, self._url))
 
         if blocksize is None:
             # lets try 1kB chunks
@@ -195,12 +198,13 @@ class Requester(object):
         )
         if not request.ok:
             raise IOError('HTTPStatus: %s\nCannot get %s.' % (request.status_code, url))
+        logger.debug('GET_(iterator):response: %s' % 'OK')
         return request.iter_content(blocksize)
 
     def post(self, url=None, params=None, data=None, headers=None, cookies=None, auth=None, files=None):
         logger.debug('POST: %s' % default(url, self._url))
-        logger.debug('POST: params: %s' % str(params))
-        logger.debug('POST: data: %s' % str(data))
+        logger.debug('POST:params: %s' % str(params))
+        logger.debug('POST:data: %s' % str(data))
         request = self.session.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
