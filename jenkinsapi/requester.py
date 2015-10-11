@@ -11,33 +11,40 @@ __author__ = 'sedlacek'
 
 # workaround for broken ssl in python :(
 SSLVers = []
+SSLVersStr = {None: 'UNKNOWN'}
 # lets try to get highest possible SSL version
 try:
     SSLVers.insert(0, ssl.PROTOCOL_SSLv2)
+    SSLVersStr[ssl.PROTOCOL_SSLv2] = 'SSLv2'
 except:
     pass
 try:
     SSLVers.insert(0, ssl.PROTOCOL_SSLv3)
+    SSLVersStr[ssl.PROTOCOL_SSLv3] = 'SSLv3'
 except:
     pass
 try:
     SSLVers.insert(0, ssl.PROTOCOL_SSLv23)
+    SSLVersStr[ssl.PROTOCOL_SSLv23] = 'SSLv23'
 except:
     pass
 try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1)
+    SSLVersStr[ssl.PROTOCOL_TLSv1] = 'TLSv1'
 except:
     pass
 try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1_1)
+    SSLVersStr[ssl.PROTOCOL_TLSv1_1] = 'TLSv1_1'
 except:
     pass
 try:
     SSLVers.insert(0, ssl.PROTOCOL_TLSv1_2)
+    SSLVersStr[ssl.PROTOCOL_TLSv1_2] = 'TLSv1_2'
 except:
     pass
 
-logger.debug(' Detected SSL versions: %s' % str(SSLVers))
+logger.debug(' Detected SSL versions: %s' % str(SSLVersStr.values()))
 
 # from https://lukasa.co.uk/2013/01/Choosing_SSL_Version_In_Requests/
 from requests.adapters import HTTPAdapter
@@ -140,7 +147,8 @@ class Requester(object):
     """
     Object requesting data
     """
-    def __init__(self, url, username=None, password=None, params=None, headers=None, cookies=None, timeout=None):
+    def __init__(self, url, username=None, password=None, params=None, headers=None,
+                 cookies=None, timeout=None, session=None):
         self._url = url
         self._auth = ()
         if username is not None:
@@ -153,21 +161,26 @@ class Requester(object):
         self._headers = default(headers, {})
         self._cookies = default(cookies, {})
 
-        # create request session object and try to auto detect proper ssl version
-        self.session = requests.session()
-        if self._url.startswith('https://'):
-            for SSLVer in SSLVers:
-                try:
-                    self.session = requests.session()
-                    self.session.mount('https://', SSLAdapter(SSLVer))
-                    self.session.get(self._url)
-                    break
-                except requests.exceptions.SSLError:
-                    continue
+        if session is None:
+            # create request session object and try to auto detect proper ssl version
+            self._session = requests.session()
+            if self._url.startswith('https://'):
+                SSLVer = None
+                for SSLVer in SSLVers:
+                    try:
+                        self._session = requests.session()
+                        self._session.mount('https://', SSLAdapter(SSLVer))
+                        self._session.get(self._url)
+                        break
+                    except requests.exceptions.SSLError:
+                        continue
+                logger.debug('Detected SSL Version: %s' % SSLVersStr[SSLVer])
+        else:
+            self._session = session
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))
-        request = self.session.get(
+        request = self._session.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
@@ -187,7 +200,7 @@ class Requester(object):
             # lets try 1kB chunks
             blocksize = 1024
 
-        request = self.session.get(
+        request = self._session.get(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
@@ -205,7 +218,7 @@ class Requester(object):
         logger.debug('POST: %s' % default(url, self._url))
         logger.debug('POST:params: %s' % str(params))
         logger.debug('POST:data: %s' % str(data))
-        request = self.session.post(
+        request = self._session.post(
             url=default(url, self._url),
             params=merge_all_dict(self._params, params),
             cookies=merge_all_dict(self._cookies, cookies),
@@ -229,3 +242,7 @@ class Requester(object):
     def update_params(self, value):
         self._params.update(value)
         return self
+
+    @property
+    def session(self):
+        return self._session

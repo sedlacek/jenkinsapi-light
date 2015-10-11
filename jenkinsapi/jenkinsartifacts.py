@@ -43,12 +43,17 @@ class Artifact(object):
                 params = {'token': self.parent.auth.token}
             else:
                 params = {}
+            if self.parent is not None and isinstance(self.parent, jenkinsapi.jenkinsbase.JenkinsBase):
+                session = self.parent.requester.session
+            else:
+                session = None
             self._requester = jenkinsapi.requester.Requester(
                 url=self.parent.url,
                 params=params,
                 username=self.parent.auth.auth.username,
                 password=self.parent.auth.auth.password,
                 timeout=self.parent.timeout,
+                session=session,
             )
         return self._requester
 

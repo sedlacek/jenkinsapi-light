@@ -4,6 +4,9 @@ import jenkinsapi.misc
 import jenkinsapi.requester
 import jenkinsapi.jenkins
 
+import logging
+logger = logging.getLogger(__name__)
+
 __author__ = 'sedlacek'
 
 
@@ -48,9 +51,9 @@ class JenkinsBase(object):
             or (parent is not None and objid is None and url is not None),\
             'Unsupported combination of arguments: parent, objid and url.'
 
-        self._url = jenkinsapi.misc.normalize_url(url)
         self.objid = objid
         self._parent = parent
+        self._url = url
 
         if self._parent is None:
             _ = self.parent                                 # force self._parent creation (FakeJenkinsBase)
@@ -64,11 +67,13 @@ class JenkinsBase(object):
         self._data = {}                                     # empty jenkins data, should be populated by self.poll
         self._auth = auth                                   # jenkins authentication object, either token or BasicAuth
         self._requester = None                              # requester, setup at first poll request
+        self._session = None
 
         if self._poll_interval is not None or data is not None:
             self.poll(data)
 
         self._api = None                                    # api url
+        logger.debug(' Created %s object %s' % (self.__class__.__name__, repr(self)))
 
     def __an_update__(self, poll_interval=None, auth=None, timeout=None):
         """
@@ -136,6 +141,9 @@ class JenkinsBase(object):
 
     @property
     def requester(self):
+        session = None
+        if isinstance(self.parent, JenkinsBase):
+            session = self.parent.requester.session
         if self._requester is None:
             if self.auth.token is not None:
                 params = {'token': self.auth.token}
@@ -143,7 +151,7 @@ class JenkinsBase(object):
                 params = {}
             self._requester = jenkinsapi.requester.Requester(url=self.api, params=params,
                                         username=self.auth.auth.username, password=self.auth.auth.password,
-                                        timeout=self.timeout)
+                                        timeout=self.timeout, session=session)
         return self._requester
 
     def _poll(self):
@@ -229,7 +237,7 @@ class JenkinsBase(object):
         """
         :return:            my own url
         """
-        if self._url is not None:
+        if hasattr(self, '_url') and self._url is not None:
             return self._url
         if self.parent is not None and self.objid is not None:
             self._url = jenkinsapi.misc.normalize_url(jenkinsapi.misc.join_url(self.parent.url, self._EXTRA, self.objid))

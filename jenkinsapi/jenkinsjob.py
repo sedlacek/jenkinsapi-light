@@ -136,6 +136,7 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
         super(JenkinsJob, self)._update_data(data=data, now=now)
 
         for build in self._data['builds']:
+            logger.debug('XXXXX: build_data: %s' % build)
             self.update_build_ref(jenkinsapi.jenkinsbuild.JenkinsBuild(parent=self,
                                                                        url=build['url'],
                                                                        poll_interval=self.poll_interval,
@@ -146,7 +147,7 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
                 self._firstbuild = None
             else:
                 self._firstbuild = jenkinsapi.jenkinsbuild.JenkinsBuild(parent=self,
-                                                                        url=self._data['firstBuild'],
+                                                                        url=self._data['firstBuild']['url'],
                                                                         poll_interval=self.poll_interval,
                                                                         auth=self.auth,
                                                                         timeout=self.timeout)
@@ -193,14 +194,9 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
             parameter += [{'name': name, 'value': value} for name, value in params.iteritems()]
         if files is not None:
             for name, _file in files.iteritems():
+                # we have to add files to parameters ...
                 parameter.append({'name': name, 'file': name})
-                # we have to add a files to _parameters, as jenkins does
-                # get file name
-                if isinstance(_file, file):
-                    filename = str(os.path.basename(_file.name))
-                else:
-                    filename = _file[0]
-                _parameters[name] = str(os.path.basename(filename))
+                _parameters[name] = None
 
         if buildapi:
             # we have to use build

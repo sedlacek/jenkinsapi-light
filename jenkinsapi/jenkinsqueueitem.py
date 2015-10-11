@@ -129,10 +129,16 @@ class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
     @property
     def parameters(self):
         self.auto_poll()
-        if 'params' in self._data:
-            return dict(
-                [line.split('=', 1) for line in self._data['params'].splitlines() if line != '']
-            )
+        if 'actions' in self._data:
+            result = {}
+            for action in self._data['actions']:
+                if 'parameters' in action:
+                    for param in action['parameters']:
+                        if 'value' in param:
+                            result[param['name']] = param['value']
+                        else:
+                             result[param['name']] = None
+            return result
         else:
             return {}
 
