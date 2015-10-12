@@ -6,6 +6,9 @@ import jenkinsapi.jenkinsartifacts
 
 from time import sleep
 
+import logging
+logger = logging.getLogger(__name__)
+
 __author__ = 'sedlacek'
 
 class _JenkinsBuild(type):
@@ -132,7 +135,7 @@ class JenkinsBuild(jenkinsapi.jenkinsbase.JenkinsBase):
             # well, we are behind the end
             raise jenkinsapi.misc.JenkinsNoMoreConsoleData
 
-        url = '%s/logText/progressiveText' % self.url
+        url = jenkinsapi.misc.normalize_url(jenkinsapi.misc.join_url(self.url, 'logText/progressiveText'))
 
         while True:
             #Iterate trough console, console data
@@ -145,6 +148,8 @@ class JenkinsBuild(jenkinsapi.jenkinsbase.JenkinsBase):
                 self._console_more_data = False
             # noinspection PyBroadException
             try:
+                logger.debug('console: x-text-size=%d, x-more-data=%s' %
+                             (int(request.headers['x-text-size']), self._console_more_data))
                 newsize = int(request.headers['x-text-size'])
                 # we did not receive eny update ...
                 if self._console_text_size == newsize:

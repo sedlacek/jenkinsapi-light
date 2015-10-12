@@ -196,7 +196,7 @@ class Requester(object):
                     headers=merge_all_dict(self._headers, headers),
                     auth=last_not_none(self._auth, auth),
                     timeout=self._timeout)
-            except ZeroReturnError:
+            except (ZeroReturnError, requests.exceptions.ConnectionError):
                 logger.warning(' caught ZeroReturnError for %s' % default(url, self._url))
                 sleep(RETRY_WAIT)
                 continue
@@ -229,7 +229,7 @@ class Requester(object):
                     auth=last_not_none(self._auth, auth),
                     timeout=self._timeout,
                     stream=True)
-            except ZeroReturnError:
+            except (ZeroReturnError, requests.exceptions.ConnectionError):
                 logger.warning(' caught ZeroReturnError for %s' % default(url, self._url))
                 sleep(RETRY_WAIT)
                 continue
