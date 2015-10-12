@@ -1,13 +1,18 @@
 import requests
 import ssl
+from time import sleep
+from OpenSSL.SSL import ZeroReturnError
 
 from jenkinsapi.misc import default, merge_all_dict, last_not_none
-from sys import stdout
 
 import logging
 logger = logging.getLogger(__name__)
 
-__author__ = 'sedlacek'
+__author__ = 'sedlacek@avast.com'
+
+# workaround for not so reliable connection
+RETRIES = 5             # Number of retries for connection problems
+RETRY_WAIT = 5          # wait in seconds between each retry
 
 # workaround for broken ssl in python :(
 SSLVers = []
@@ -180,13 +185,26 @@ class Requester(object):
 
     def get(self, url=None, params=None, headers=None, cookies=None, auth=None):
         logger.debug('GET: %s' % default(url, self._url))
-        request = self._session.get(
-            url=default(url, self._url),
-            params=merge_all_dict(self._params, params),
-            cookies=merge_all_dict(self._cookies, cookies),
-            headers=merge_all_dict(self._headers, headers),
-            auth=last_not_none(self._auth, auth),
-            timeout=self._timeout)
+        # workaround for unreliable network and servers, giwe it few retries
+
+        for i in range(RETRIES):
+            try:
+                request = self._session.get(
+                    url=default(url, self._url),
+                    params=merge_all_dict(self._params, params),
+                    cookies=merge_all_dict(self._cookies, cookies),
+                    headers=merge_all_dict(self._headers, headers),
+                    auth=last_not_none(self._auth, auth),
+                    timeout=self._timeout)
+            except ZeroReturnError:
+                sleep(RETRY_WAIT)
+                continue
+            except:
+                # other error, just re-rise
+                raise
+            # all ok, so continue
+            break
+
         if not request.ok:
             raise IOError('HTTPStatus: %s\nCannot get %s.' % (request.status_code, url))
         logger.debug('GET:response: %s' % request.content)
@@ -200,15 +218,25 @@ class Requester(object):
             # lets try 1kB chunks
             blocksize = 1024
 
-        request = self._session.get(
-            url=default(url, self._url),
-            params=merge_all_dict(self._params, params),
-            cookies=merge_all_dict(self._cookies, cookies),
-            headers=merge_all_dict(self._headers, headers),
-            auth=last_not_none(self._auth, auth),
-            timeout=self._timeout,
-            stream=True
-        )
+        for i in range(RETRIES):
+            try:
+                request = self._session.get(
+                    url=default(url, self._url),
+                    params=merge_all_dict(self._params, params),
+                    cookies=merge_all_dict(self._cookies, cookies),
+                    headers=merge_all_dict(self._headers, headers),
+                    auth=last_not_none(self._auth, auth),
+                    timeout=self._timeout,
+                    stream=True)
+            except ZeroReturnError:
+                sleep(RETRY_WAIT)
+                continue
+            except:
+                # other error, just re-rise
+                raise
+            # all ok, so continue
+            break
+
         if not request.ok:
             raise IOError('HTTPStatus: %s\nCannot get %s.' % (request.status_code, url))
         logger.debug('GET_(iterator):response: %s' % 'OK')
