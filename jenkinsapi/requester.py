@@ -197,6 +197,7 @@ class Requester(object):
                     auth=last_not_none(self._auth, auth),
                     timeout=self._timeout)
             except ZeroReturnError:
+                logger.warning(' caught ZeroReturnError for %s' % default(url, self._url))
                 sleep(RETRY_WAIT)
                 continue
             except:
@@ -229,6 +230,7 @@ class Requester(object):
                     timeout=self._timeout,
                     stream=True)
             except ZeroReturnError:
+                logger.warning(' caught ZeroReturnError for %s' % default(url, self._url))
                 sleep(RETRY_WAIT)
                 continue
             except:

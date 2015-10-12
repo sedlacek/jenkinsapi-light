@@ -136,7 +136,6 @@ class JenkinsJob(jenkinsapi.jenkinsbase.JenkinsBase):
         super(JenkinsJob, self)._update_data(data=data, now=now)
 
         for build in self._data['builds']:
-            logger.debug('XXXXX: build_data: %s' % build)
             self.update_build_ref(jenkinsapi.jenkinsbuild.JenkinsBuild(parent=self,
                                                                        url=build['url'],
                                                                        poll_interval=self.poll_interval,
