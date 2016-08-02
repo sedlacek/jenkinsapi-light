@@ -3,6 +3,7 @@ import jenkinsapi.jenkinsqueueitem
 import jenkinsapi.requester
 import jenkinsapi.jenkins
 
+
 __author__ = 'sedlacek'
 
 class _JenkinsQueueMeta(type):

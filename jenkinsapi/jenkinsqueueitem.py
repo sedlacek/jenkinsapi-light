@@ -5,9 +5,15 @@ import jenkinsapi.jenkinsqueue
 import jenkinsapi.jenkinsjob
 import jenkinsapi.jenkinsbuild
 import jenkinsapi.misc
-from time import sleep
+from time import sleep, time
+
+BLOCK_TIMEOUT = jenkinsapi.misc.BLOCK_TIMEOUT
+BLOCK_WARNING = jenkinsapi.misc.BLOCK_WARNING
 
 __author__ = 'sedlacek'
+
+import logging
+logger = logging.getLogger(__name__)
 
 class _JenkinsQueueItemMeta(type):
     """
@@ -159,6 +165,8 @@ class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
         :param poll_interval:       poll interval, default 1 second
         :return:                    self
         """
+        start_time = time()
+        block_warning = True
         if poll_interval is None:
             if self.poll_interval is not None and self.poll_interval > 0:
                 poll_interval = self.poll_interval
@@ -167,5 +175,10 @@ class JenkinsQueueItem(jenkinsapi.jenkinsbase.JenkinsBase):
                 poll_interval = jenkinsapi.misc.DEFAULT_POLL_INTERVAL
         assert poll_interval >= 1, 'Insanely short poll_interval (%f)' % poll_interval
         while self.poll().inqueue:
+            if time() - start_time > BLOCK_TIMEOUT:
+                raise RuntimeError('Item %s is in the queue more then %d seconds' % self.url, BLOCK_TIMEOUT)
+            if time() - start_time > BLOCK_WARNING and block_warning:
+                logger.warning('Waiting for %s dequeue for more then %d seconds' % (self.url, BLOCK_WARNING))
+                block_warning = False
             sleep(poll_interval)
         return self

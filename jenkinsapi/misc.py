@@ -6,6 +6,9 @@ DEFAULT_POLL_INTERVAL = 5           # polling interval default for blocking oper
                                     # I do not know about any other method how to get jenkins data on change
                                     # then regular polling :(
 
+BLOCK_TIMEOUT = 10800               # max block timeout in seconds
+BLOCK_WARNING = 600                 # issue a warning when in block more tne BOCK_WARNING seconds
+
 def default(value, default_if_value_is_None):
     """
     Returns default value is value is None
